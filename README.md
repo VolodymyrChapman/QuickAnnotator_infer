@@ -1,6 +1,6 @@
 # QuickAnnotator_infer
 Infer on large numbers of images using a trained QuickAnnotator model!
-Heavily borrowed from https://github.com/choosehappy/QuickAnnotator - *please cite the QuickAnnotator project if using QuickAnnotator_infer* (citation instructions on project page).
+Heavily borrowed from https://github.com/choosehappy/QuickAnnotator - **please cite the QuickAnnotator project if using QuickAnnotator_infer** (citation instructions on project page).
 
 # Purpose
 QuickAnnotator provides a neat, accessible and intuitive way of training Deep Learning models.
@@ -31,7 +31,7 @@ And the following additional python package:
 5. numpy
 6. matplotlib
 
-# Usage
+# Usage - refer to projects/example_projects for required project folder layout
 1. Create a new project folder in the 'projects' directory - feel free to add a text file describing how you created the model, types of images used etc. This will be referred to as QuickAnnotator_infer project folder
 2. Copy the config file used to create your model in QuickAnnotator. Located here --> {YOUR QuickAnnotator DIRECTORY HERE}/config/config.ini
 3. Paste this into your QuickAnnotator_infer project folder - we need this to recreate the model trained in QuickAnnotator
