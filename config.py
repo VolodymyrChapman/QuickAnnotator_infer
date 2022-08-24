@@ -12,15 +12,17 @@ for i,e in enumerate(os.listdir('projects')):
 
 # user selects desired project index
 print('Please select index of desired project:')
-i = input()
+i = int(input())
 
-basedir = projs[i]
+basedir = os.path.join('projects', projs[i])
 
 # initialize a new config file:
 config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
 
 # read options from selected config
-config.read(os.path.join('project', basedir))
+config_path = os.path.join(basedir, 'config.ini')
+print(config_path)
+config.read(config_path)
 
 # # display:
-# print(f'Config sections = {config.sections()}')
+print(f'Config sections = {config.sections()}')

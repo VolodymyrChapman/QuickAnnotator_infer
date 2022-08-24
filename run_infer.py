@@ -2,9 +2,10 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+import cv2
 from unet import UNet
 import ttach as tta
-from skimage import io
+import skimage.io as skio
 from sklearn import feature_extraction
 from config import config, basedir
 
@@ -24,23 +25,23 @@ def divide_batch(l, n):
     for i in range(0, l.shape[0], n):
         yield l[i:i + n, ::]
 
-def QA_infer(basedir = basedir):
+def QA_infer(basedir):
     # extract args
     # resize = int(args['resize'])
-    patch_size = int(config['common']['patchsize'])
-    batch_size = int(config['get_prediction']['batchsize'])
+    patch_size = int(config.getint('common','patchsize'))
+    batch_size = int(config.getint('get_prediction','batchsize'))
     stride_size = patch_size // 2
 
     # load model:
         # ----- load network
-    device = get_torch_device(config['cuda']['gpuid'])
+    device = get_torch_device()
 
     # check for model files in basedir provided by user
     model_list = [model for model in os.listdir(basedir) if '.pth' in model]
     
     # If multiple models provided or no models provided, raise exception
     if len(model_list) > 1:
-        raise ValueError(f'The QA model directory basedir} has more than 1 QA model\nPlease ensure only 1 model is in this directory')
+        raise ValueError(f'The QA model directory {basedir} has more than 1 QA model\nPlease ensure only 1 model is in this directory')
     elif len(model_list) == 0:
         raise ValueError(f'The QA model directory {basedir} is empty\nPlease place a QA model checkpoint in this directory')
     
@@ -59,17 +60,22 @@ def QA_infer(basedir = basedir):
     # create output image directory
     output_dir = os.path.join(basedir, 'output')
     
-    # ask user if to continue if 
+    # if output dir already exists (has been run before), ask user to continue
     if os.path.exists(output_dir):
         print('Warning - output directory exists for this project.\nWould you like to proceed with inference & overwrite? (y/n)')
         proceed = input()
-
+        
+        # raise exception if user doesn't want to continue
         if proceed == 'n':
             raise Exception('Inference terminated by user - please empty output directory and repeat')
         elif proceed == 'y':
             pass
         else:
             raise Exception('Input not y or n - please retry and provide one of these options')
+    
+    # create outdir if doesn't exist 
+    else:
+        os.mkdir(output_dir)
 
     input_dir = os.path.join(basedir, 'input')
     input_image_files = os.listdir(input_dir)
@@ -77,8 +83,9 @@ def QA_infer(basedir = basedir):
     # predict on all images
     for image in input_image_files:
         # parse image
-        img = io.imread(image)
-        
+        img = skio.imread(os.path.join(input_dir, image) )
+
+        io = cv2.resize(src = img, dsize = (0, 0), fx=1, fy=1)
         # initiate output image
         io_shape_orig = np.array(img.shape)
 
@@ -137,8 +144,11 @@ def QA_infer(basedir = basedir):
         axes[1].imshow(img)
         axes[1].imshow(output, cmap = 'brg', alpha =0.7*(output>0) )
         axes[1].set_title('QA infer', fontsize = 14)
-        # for ax in axes:
-        #     ax.axis('off')
+       
+       # turn axes ticks off
+        for ax in axes:
+            ax.set_axis_off()
+
         fig.tight_layout()
         
         # save
@@ -151,3 +161,7 @@ def QA_infer(basedir = basedir):
         plt.clf() 
         # closes all the figure windows.
         plt.close('all')
+
+# run inference
+if __name__ == '__main__': 
+    QA_infer(basedir)
