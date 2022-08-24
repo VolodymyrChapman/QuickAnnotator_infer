@@ -1,0 +1,3 @@
+Model created using royalty free images of dogs from pixabay.com .
+Trained using cuda11 using RTX 3000 series GPU.
+Images used are the same as those in 'input' directory.
