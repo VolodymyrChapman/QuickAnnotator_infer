@@ -23,4 +23,4 @@ RUN pip3 install -r requirements.txt
 COPY . /opt/quick_annotator
 
 ADD . /opt/quick_annotator
-CMD ["python3", "QA.py"]
+CMD ["python3", "run_infer.py"]
