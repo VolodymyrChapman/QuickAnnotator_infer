@@ -118,7 +118,7 @@ def run_model_infer(model_path, device, stride_size, batch_size, patch_size, sep
         outfile_name = os.path.split(model_path)[-1] # get model name from path
         outfile_name = os.path.splitext(outfile_name)[0] #remove extension
         outfile_name = outfile_name + sep + os.path.splitext(image)[0] + '.npy' # add image name, removing extension 
-        np.save(os.path.join(output_dir, outfile_name))
+        np.save(os.path.join(output_dir, outfile_name), output)
         
     #     # create and output mask over original image
     #     fig, axes = plt.subplots(1, 2, figsize = (18,12))
@@ -156,14 +156,17 @@ def arr_list_mean_round(arr_list):
 
     return arr_stack
 
-def mean_ensemble(output_dir, sep, plot = True, img_dir = 'input'):
+def mean_ensemble(basedir, sep, plot = True):
+    img_dir = os.path.join(basedir, 'input')
     # make dir for combined (ensemble) predictions if doesn't exist
+    output_dir = os.path.join(basedir, 'output')
     combined_pred_dir = os.path.join(output_dir, 'ensemble_predictions')
     if os.path.exists(combined_pred_dir) == False:
         os.mkdir(combined_pred_dir)
     # retrieve list of unique image values
-    output_file_list = os.listdir(output_dir)
-    uniq_image_files = set([image_name.split(sep)[0] for image_name in output_file_list])
+    output_file_list = [filename for filename in os.listdir(output_dir) if '.npy' in filename] #remove non-npy files
+    uniq_image_files = set([image_name.split(sep)[1] for image_name in output_file_list]) # remove model ID from name
+    uniq_image_files = [os.path.splitext(image_name)[0] for image_name in uniq_image_files] # remove extension from unique image names
     
     # for each unique image, retrieve combined ensemble mask for predictions
     for uniq_image in uniq_image_files:
@@ -174,32 +177,43 @@ def mean_ensemble(output_dir, sep, plot = True, img_dir = 'input'):
         # retrieve mean and rounded (combined) prediction
         out_pred = arr_list_mean_round(preds)
         # output combined prediction
-        np.save(os.path.join(combined_pred_dir, uniq_image), out_pred)
+        np.save(os.path.join(combined_pred_dir, uniq_image + '.npy'), out_pred)
         
         # if plots desired, plot predictions of each model
+                    
+        #TODO: Plot predictions against original image + final consensus prediction
         if plot:
             # create and output mask over original image
-            fig, axes = plt.subplots(2, len(preds_filenames), figsize = (18,12))
+            fig, axes = plt.subplots(2, len(preds_filenames), figsize = (int(len(preds_filenames) * 6),12))
             # retrieve model titles
             titles = [filename.split(sep)[0] for filename in preds_filenames]
             
-            #TODO: Plot predictions against original image + final consensus prediction
-            img = skio.imread(os.path.join(img_dir, uniq_image))
+            # plot original image on bottom row
+            #TODO: What about other image formats? Need to use search-like rather than hard-coded extension
+            img_filename = uniq_image + '.png' 
+
+            img = skio.imread(os.path.join(img_dir, img_filename))
             axes[1][0].imshow(img)
             axes[1][0].set_title('Original image', fontsize = 14)
+
+            # Plot combined / ensemble prediction on bottom row
+            axes[1][1].imshow(img)
+            axes[1][1].imshow(out_pred, cmap = 'brg', alpha =0.7*(out_pred>0) )
+            axes[1][1].set_title('Mean consensus prediction', fontsize = 14)
             
-            axes[1].imshow(img)
-            axes[1].imshow(output, cmap = 'brg', alpha =0.7*(output>0) )
-            axes[1].set_title('QA infer', fontsize = 14)
+            for i in range(len(preds)):
+                axes[0][i].imshow(img)
+                axes[0][i].imshow(preds[i], cmap = 'brg', alpha =0.7*(preds[i]>0) )
+                axes[0][i].set_title(f'Model: {titles[i]}', fontsize = 14)
         
         # turn axes ticks off
-            for ax in axes:
+            for ax in axes.ravel():
                 ax.set_axis_off()
 
             fig.tight_layout()
             
             # save
-            plt.savefig(os.path.join(output_dir, image))
+            plt.savefig(os.path.join(output_dir, 'Comparison_plot_' + img_filename))
 
             # clear all memory leaks
             # clear the current axes.
@@ -251,7 +265,7 @@ def QA_infer(basedir, sep):
     
     # for each model present, run inference on data
     for model_file in model_list:
-        model_path = os.path.join(basedir, model_file)
+        model_path = os.path.join(model_dir, model_file)
 
         run_model_infer(model_path, device, stride_size, batch_size, patch_size, sep, output_dir)
         print(f'Inference complete for model ID: {model_file}')
@@ -259,7 +273,7 @@ def QA_infer(basedir, sep):
     # if more than one model was used for inference, output a combined / ensembled result (mean of all + rounding)
     if len(model_list) > 1:
         print('Creating ensemble prediction')
-        mean_ensemble(output_dir, sep)
+        mean_ensemble(basedir, sep)
         print('Ensemble prediction complete!')
     
     print('All inference complete!')
