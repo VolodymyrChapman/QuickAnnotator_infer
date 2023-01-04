@@ -156,7 +156,7 @@ def arr_list_mean_round(arr_list):
 
     return arr_stack
 
-def mean_ensemble(output_dir, sep):
+def mean_ensemble(output_dir, sep, plot = True, img_dir = 'input'):
     # make dir for combined (ensemble) predictions if doesn't exist
     combined_pred_dir = os.path.join(output_dir, 'ensemble_predictions')
     if os.path.exists(combined_pred_dir) == False:
@@ -168,13 +168,46 @@ def mean_ensemble(output_dir, sep):
     # for each unique image, retrieve combined ensemble mask for predictions
     for uniq_image in uniq_image_files:
         # retrieve all predictions for that unique image
-        preds = [pred for pred in output_file_list if uniq_image in pred]
+        preds_filenames = [pred for pred in output_file_list if uniq_image in pred]
         # parse prediction numpy arrays
-        preds = [np.load(os.path.join(output_dir, pred)) for pred in preds]
+        preds = [np.load(os.path.join(output_dir, pred)) for pred in preds_filenames]
         # retrieve mean and rounded (combined) prediction
         out_pred = arr_list_mean_round(preds)
         # output combined prediction
         np.save(os.path.join(combined_pred_dir, uniq_image), out_pred)
+        
+        # if plots desired, plot predictions of each model
+        if plot:
+            # create and output mask over original image
+            fig, axes = plt.subplots(2, len(preds_filenames), figsize = (18,12))
+            # retrieve model titles
+            titles = [filename.split(sep)[0] for filename in preds_filenames]
+            
+            #TODO: Plot predictions against original image + final consensus prediction
+            img = skio.imread(os.path.join(img_dir, uniq_image))
+            axes[1][0].imshow(img)
+            axes[1][0].set_title('Original image', fontsize = 14)
+            
+            axes[1].imshow(img)
+            axes[1].imshow(output, cmap = 'brg', alpha =0.7*(output>0) )
+            axes[1].set_title('QA infer', fontsize = 14)
+        
+        # turn axes ticks off
+            for ax in axes:
+                ax.set_axis_off()
+
+            fig.tight_layout()
+            
+            # save
+            plt.savefig(os.path.join(output_dir, image))
+
+            # clear all memory leaks
+            # clear the current axes.
+            plt.cla() 
+            # clear the current figure.
+            plt.clf() 
+            # closes all the figure windows.
+            plt.close('all')
 
 
 def QA_infer(basedir, sep):
