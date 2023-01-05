@@ -11,13 +11,13 @@ from config import config, basedir
 
 # Note!!! please ensure the dash '-' is not used within filenames of the images you would like to predict on
 
-# The dash is used as a separator for saving predictions from individual models where multiple models are used. 
-# If a dash is used within image file names, this script will error out with a corresponding naming error. 
-# If your images do have a dash within them, the easiest way to avoid this error is by changing the below 
-# sep string to a character that is not contained within your image names, such as an underscore (_), 
+# The underscore is used as a separator for saving predictions from individual models where multiple models are used. 
+# If this character is used within image file names, this script will error out with a corresponding naming error. 
+# If your images do have an underscore within them, the easiest way to avoid this error is by changing the below 
+# sep string to a character that is not contained within your image names, such as a dash (-), 
 # comma (,) or full stop (.)
 
-sep = '-'
+sep = '_'
 
 #################### Quick Annotator UNet for ROI
 
