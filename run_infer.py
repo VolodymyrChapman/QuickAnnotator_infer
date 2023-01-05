@@ -120,39 +120,13 @@ def run_model_infer(model_path, device, stride_size, batch_size, patch_size, sep
         outfile_name = outfile_name + sep + os.path.splitext(image)[0] + '.npy' # add image name, removing extension 
         np.save(os.path.join(output_dir, outfile_name), output)
         
-    #     # create and output mask over original image
-    #     fig, axes = plt.subplots(1, 2, figsize = (18,12))
-    #     axes[0].imshow(img)
-    #     axes[0].set_title('Original image', fontsize = 14)
-        
-    #     axes[1].imshow(img)
-    #     axes[1].imshow(output, cmap = 'brg', alpha =0.7*(output>0) )
-    #     axes[1].set_title('QA infer', fontsize = 14)
-       
-    #    # turn axes ticks off
-    #     for ax in axes:
-    #         ax.set_axis_off()
-
-    #     fig.tight_layout()
-        
-    #     # save
-    #     plt.savefig(os.path.join(output_dir, image))
-
-    #     # clear all memory leaks
-    #     # clear the current axes.
-    #     plt.cla() 
-    #     # clear the current figure.
-    #     plt.clf() 
-    #     # closes all the figure windows.
-    #     plt.close('all')
-
 def arr_list_mean_round(arr_list):
     # stack
     arr_stack = np.stack(arr_list, axis = 0)
     # mean
-    arr_stack = np.mean(arr_stack, axis = 0)
+    arr_stack = np.mean(arr_stack, axis = 0) / 255 # as max value at 255
     # round
-    arr_stack = np.round(arr_stack)
+    arr_stack = np.round(arr_stack, 0)
 
     return arr_stack
 
