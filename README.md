@@ -9,6 +9,12 @@ This is the intended outcome of the QuickAnnotator_infer project.
 
 A long-term goal would be an open share for clinicians/researchers across continents to try, use and compare performance of models on each others' data. Get in touch if you'd like to help take this forward!
 
+# New features!
+1. QA_infer can now accept multiple models at once to calculate an ensemble output! 
+2. QA_infer can now perform evaluation of models against a QuickAnnotator ground truth!
+## In development:
+* Removal of dependence on a config file - the dream would be to run QA_infer with nothing more than the output model
+
 # Requirements
 ---
 Tested on Ubuntu 20.04 - feedback on performance on other OSs would be greatly appreciated!
