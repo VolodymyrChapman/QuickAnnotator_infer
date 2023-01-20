@@ -242,29 +242,32 @@ def QA_eval(basedir):
     # TODO: option for multiple data partitions i.e. using os.walk allows for subdirectories?
     outlist = []
     for gt_file in gt_files:
-        # TODO: process and output csv in this dir
-        # get core image name - remove ext and trailing '_mask' 
+        # get core image name from QA mask - remove ext and trailing '_mask'
+        # TODO: What to do in case of no trailing '_mask' ? 
         img_name = os.path.splitext(gt_file)[0]
         img_name = '_'.join(img_name.split('_')[:-1])
 
-        # search for mask using core image name - 
-        # TODO: what to do in edge case of multiple images containing core image name?
-        # TODO: adapt for edge case of no pred for gt - accidentally included with no
-        # previous inference
-        pred_file = [pred for pred in pred_files if img_name in pred][0]
-        
-        # parse gt and pred
         gt_mask = io.imread(os.path.join(gt_dir, gt_file)) > 0
-        # parse pred, assuming it's image, not numpy array
-        # QA infer outputs npy... 
-        # TODO: adapt to deal with edge case of dir of npy files
-        pred_mask = io.imread(os.path.join(pred_dir, pred_file)) > 0
-        
-        # retrieve metric dict for image and add image name to keys / vals
-        metric_dict = QA_mask_eval(gt_mask, pred_mask)
-        metric_dict['imagename'] = img_name
 
-        outlist.append(metric_dict)
+        # search for mask using core image name - 
+        pred_file_list = [pred for pred in pred_files if img_name in pred]
+
+        # in edge case of no pred available - skip this loop
+        if len(pred_file_list) == 0:
+            print(f'No predictions for image: {img_name} - Skipping!')
+            continue
+        
+        # for used as could be multiple appropriate pred files
+        for pred in pred_files:
+            # parse pred
+            pred_mask = np.load(os.path.join(pred_dir, pred)) > 0
+            
+            # retrieve metric dict for image and add image name to keys / vals
+            metric_dict = QA_mask_eval(gt_mask, pred_mask)
+            metric_dict['imagename'] = img_name
+            metric_dict['pred_file'] = pred
+
+            outlist.append(metric_dict)
     
     out_df = pd.DataFrame(outlist)
     # output as tsv
