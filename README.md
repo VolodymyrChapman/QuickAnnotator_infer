@@ -13,7 +13,7 @@ A long-term goal would be an open share for clinicians/researchers across contin
 1. QA_infer can now accept multiple models at once to calculate an ensemble output! 
 2. QA_infer can now perform evaluation of models against a QuickAnnotator ground truth!
 ## In development:
-* Removal of dependence on a config file - the dream would be to run QA_infer with nothing more than the output model
+* Removal of dependence on a config file - the dream would be to run QA_infer with nothing more than a trained QuickAnnotator model
 
 # Requirements
 ---
