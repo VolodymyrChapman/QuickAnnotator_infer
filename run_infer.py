@@ -7,6 +7,8 @@ from unet import UNet
 import ttach as tta
 import skimage.io as skio
 from sklearn import feature_extraction
+# TODO: import config functions into this file so no input needed when importing functions from this file
+# i.e. consequence of importing from config here
 from config import config, basedir
 import pandas as pd
 from sklearn.metrics import f1_score, roc_auc_score, precision_score, recall_score
@@ -136,12 +138,16 @@ def mean_ensemble(basedir, sep, plot = True):
     img_dir = os.path.join(basedir, 'input')
     # make dir for combined (ensemble) predictions if doesn't exist
     output_dir = os.path.join(basedir, 'output')
-    combined_pred_dir = os.path.join(output_dir, 'ensemble_predictions')
-    if os.path.exists(combined_pred_dir) == False:
-        os.mkdir(combined_pred_dir)
+    
+    # combined prediction not put in separate directory
+
+    # combined_pred_dir = os.path.join(output_dir, 'ensemble_predictions')
+    # if os.path.exists(combined_pred_dir) == False:
+    #     os.mkdir(combined_pred_dir)
+
     # retrieve list of unique image values
     output_file_list = [filename for filename in os.listdir(output_dir) if '.npy' in filename] #remove non-npy files
-    uniq_image_files = set([image_name.split(sep)[1] for image_name in output_file_list]) # remove model ID from name
+    uniq_image_files = set([image_name.split(sep)[-1] for image_name in output_file_list]) # remove model ID from name
     uniq_image_files = [os.path.splitext(image_name)[0] for image_name in uniq_image_files] # remove extension from unique image names
     
     # for each unique image, retrieve combined ensemble mask for predictions
@@ -153,7 +159,7 @@ def mean_ensemble(basedir, sep, plot = True):
         # retrieve mean and rounded (combined) prediction
         out_pred = arr_list_mean_round(preds)
         # output combined prediction
-        np.save(os.path.join(combined_pred_dir, uniq_image + '.npy'), out_pred)
+        np.save(os.path.join(output_dir, 'combined' + sep + uniq_image + '.npy'), out_pred)
         
         # if plots desired, plot predictions of each model
                     
@@ -162,7 +168,7 @@ def mean_ensemble(basedir, sep, plot = True):
             # create and output mask over original image
             fig, axes = plt.subplots(2, len(preds_filenames), figsize = (int(len(preds_filenames) * 6),12))
             # retrieve model titles
-            titles = [filename.split(sep)[0] for filename in preds_filenames]
+            titles = [filename.split(sep)[1] for filename in preds_filenames]
             
             # plot original image on bottom row
             #TODO: What about other image formats? Need to use search-like rather than hard-coded extension
@@ -240,16 +246,19 @@ def QA_eval(basedir):
                         train, cv, holdout - to retrieve metrics separately''')
     
     # TODO: option for multiple data partitions i.e. using os.walk allows for subdirectories?
+
+
     outlist = []
+
     for gt_file in gt_files:
         # get core image name from QA mask - remove ext and trailing '_mask'
         # TODO: What to do in case of no trailing '_mask' ? 
-        img_name = os.path.splitext(gt_file)[0]
-        img_name = '_'.join(img_name.split('_')[:-1])
+        img_name = sep.join(gt_file.split('_')[:-1])
 
-        gt_mask = io.imread(os.path.join(gt_dir, gt_file)) > 0
+        gt_mask = skio.imread(os.path.join(gt_dir, gt_file)) > 0
 
         # search for mask using core image name - 
+
         pred_file_list = [pred for pred in pred_files if img_name in pred]
 
         # in edge case of no pred available - skip this loop
@@ -257,17 +266,23 @@ def QA_eval(basedir):
             print(f'No predictions for image: {img_name} - Skipping!')
             continue
         
+        # TODO: Parallelise? Currently slow and only uses one core. Can fairly easily use processpoolexecutor for this
+        # For-loop implementation
         # for used as could be multiple appropriate pred files
-        for pred in pred_files:
+        for pred in pred_file_list:
             # parse pred
             pred_mask = np.load(os.path.join(pred_dir, pred)) > 0
-            
+
             # retrieve metric dict for image and add image name to keys / vals
             metric_dict = QA_mask_eval(gt_mask, pred_mask)
             metric_dict['imagename'] = img_name
-            metric_dict['pred_file'] = pred
+
+            # Assumes model_id + sep+ '.npy' naming convention for models 
+            model_id = sep.join(pred.split(sep)[:-1])
+            metric_dict['model_id'] = model_id
 
             outlist.append(metric_dict)
+
     
     out_df = pd.DataFrame(outlist)
     # output as tsv
@@ -328,7 +343,7 @@ def QA_infer(basedir, sep):
     print('All inference complete!')
 
     # if gt dir exists, eval available 
-    if os.path.exists(basedir, gt):
+    if os.path.exists(os.path.join(basedir, 'gt')):
         print('Evaluating prediction against ground truth')
         QA_eval(basedir)
 
