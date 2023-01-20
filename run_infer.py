@@ -8,6 +8,8 @@ import ttach as tta
 import skimage.io as skio
 from sklearn import feature_extraction
 from config import config, basedir
+import pandas as pd
+from sklearn.metrics import f1_score, roc_auc_score, precision_score, recall_score
 
 # Note!!! please ensure the dash '-' is not used within filenames of the images you would like to predict on
 
@@ -197,7 +199,77 @@ def mean_ensemble(basedir, sep, plot = True):
             # closes all the figure windows.
             plt.close('all')
 
+def QA_mask_eval(gt_mask, pred_mask):       
+        # ravel and index regions that have annotations (gt == QA_gt_mask[:,:,2])
+        annot_regions = gt_mask[:,:,2].ravel()
+        
+        # in gt_mask[:,:,1], 0 val corresponds to negative and unlabelled regions.
+        # indexing only annot regions means 0 corresponds to negative regions,
+        # afterwards
+        gt_annot_regions = gt_mask[:,:,1].ravel()[annot_regions]
+        pred_annot_regions = pred_mask.ravel()[annot_regions]
+        
+        # calculate and output desired metrics  - F1-score and AUC for overall fit eval;
+        # precision and recall to eval classification characteristics
+        outdict = {'annotated_area(px)': sum(annot_regions),
+                        'precision':precision_score(gt_annot_regions, pred_annot_regions),
+                        'recall': recall_score(gt_annot_regions, pred_annot_regions),
+                        'f1_score':f1_score(gt_annot_regions, pred_annot_regions),
+                        'roc_auc':roc_auc_score(gt_annot_regions, pred_annot_regions)
+                        }
 
+        return outdict
+
+def QA_eval(basedir):
+    #TODO: What if multiple predictions exist for an image? i.e. multiple models input and ensemble generated, too?
+
+    # if gt dir exists but infer dir doesn't exist, make
+    gt_dir = os.path.join(basedir, 'gt')
+    pred_dir = os.path.join(basedir, 'output')
+    
+    # retrieve just QA masks from pred dir
+    pred_files = [pred_file for pred_file in os.listdir(pred_dir) if '.npy' in pred_file]
+    # QA gt masks output as png... how to future-proof in case of other formats?
+    gt_files = [gt_file for gt_file in os.listdir(gt_dir) if '.png' in gt_file]
+    
+    if os.path.exists(gt_dir) == False:
+        raise ValueError('''gt directory does not exist in project directory.
+                        \nPlease create a directory named gt in the project directory 
+                        and either fill with \ngt masks to retrieve metrics or
+                        create separate dirs for data\n partitions - 
+                        train, cv, holdout - to retrieve metrics separately''')
+    
+    # TODO: option for multiple data partitions i.e. using os.walk allows for subdirectories?
+    outlist = []
+    for gt_file in gt_files:
+        # TODO: process and output csv in this dir
+        # get core image name - remove ext and trailing '_mask' 
+        img_name = os.path.splitext(gt_file)[0]
+        img_name = '_'.join(img_name.split('_')[:-1])
+
+        # search for mask using core image name - 
+        # TODO: what to do in edge case of multiple images containing core image name?
+        # TODO: adapt for edge case of no pred for gt - accidentally included with no
+        # previous inference
+        pred_file = [pred for pred in pred_files if img_name in pred][0]
+        
+        # parse gt and pred
+        gt_mask = io.imread(os.path.join(gt_dir, gt_file)) > 0
+        # parse pred, assuming it's image, not numpy array
+        # QA infer outputs npy... 
+        # TODO: adapt to deal with edge case of dir of npy files
+        pred_mask = io.imread(os.path.join(pred_dir, pred_file)) > 0
+        
+        # retrieve metric dict for image and add image name to keys / vals
+        metric_dict = QA_mask_eval(gt_mask, pred_mask)
+        metric_dict['imagename'] = img_name
+
+        outlist.append(metric_dict)
+    
+    out_df = pd.DataFrame(outlist)
+    # output as tsv
+    out_df.to_csv(os.path.join(gt_dir, 'eval.tsv'), sep = '\t', index = False)
+        
 def QA_infer(basedir, sep):
     # extract args
     # resize = int(args['resize'])
@@ -251,6 +323,11 @@ def QA_infer(basedir, sep):
         print('Ensemble prediction complete!')
     
     print('All inference complete!')
+
+    # if gt dir exists, eval available 
+    if os.path.exists(basedir, gt):
+        print('Evaluating prediction against ground truth')
+        QA_eval(basedir)
 
 # run inference
 if __name__ == '__main__': 
