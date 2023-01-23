@@ -11,6 +11,8 @@ from sklearn import feature_extraction
 # i.e. consequence of importing from config here
 from config import config, basedir
 import pandas as pd
+import itertools
+from concurrent.futures import ProcessPoolExecutor
 from sklearn.metrics import f1_score, roc_auc_score, precision_score, recall_score
 
 # Note!!! please ensure the dash '-' is not used within filenames of the images you would like to predict on
@@ -23,7 +25,7 @@ from sklearn.metrics import f1_score, roc_auc_score, precision_score, recall_sco
 
 sep = '_'
 
-#################### Quick Annotator UNet for ROI
+################################# Quick Annotator UNet inference
 
 # retrieve CUDA device requested in config.ini
 def get_torch_device(gpuid = None):
@@ -123,7 +125,11 @@ def run_model_infer(model_path, device, stride_size, batch_size, patch_size, sep
         outfile_name = os.path.splitext(outfile_name)[0] #remove extension
         outfile_name = outfile_name + sep + os.path.splitext(image)[0] + '.npy' # add image name, removing extension 
         np.save(os.path.join(output_dir, outfile_name), output)
-        
+
+
+
+################### Retrieving predictions for an ensemble of models, if presented with multiple 
+
 def arr_list_mean_round(arr_list):
     # stack
     arr_stack = np.stack(arr_list, axis = 0)
@@ -133,6 +139,10 @@ def arr_list_mean_round(arr_list):
     arr_stack = np.round(arr_stack, 0)
 
     return arr_stack
+
+
+# TODO: Integrate adaptive (weight-based) ensembles? 
+
 
 def mean_ensemble(basedir, sep, plot = True):
     img_dir = os.path.join(basedir, 'input')
@@ -205,6 +215,45 @@ def mean_ensemble(basedir, sep, plot = True):
             # closes all the figure windows.
             plt.close('all')
 
+
+############## Retrieval of mean color values in RGb and HED space
+
+def mean_img_colors(image_path):
+
+    # parse rgb image
+    img = io.imread(image_path)
+    # convert to HED colorspace
+    hed_img = color.rgb2hed(img)
+    # retrieve mean channel values in RGB and HED spaces
+    out_dict = {'mean_RGB':np.mean(img, axis=tuple(range(img.ndim-1))),
+                'mean_HED':np.mean(hed_img, axis=tuple(range(hed_img.ndim-1)))}
+    
+    return out_dict
+
+
+# helper function to retrieve img filename as well as mean img colors
+def _helper_img_color(img_file, img_dir):
+    out_dict = mean_img_colors(os.path.join(img_dir, img_file))
+    out_dict['img_name'] = img_file
+    
+    return out_dict
+
+
+def mean_img_colors_dir(img_dir):
+    img_files = os.listdir(img_dir)
+    
+    # retrieve mean color values - parallelised
+    with ProcessPoolExecutor() as executor:
+        results = executor.map(_helper_img_color, img_files, itertools.repeat(img_dir))
+
+    # unpack result values
+    out = [val for val in results]    
+
+    return out
+
+
+#################### Evaluation of predictions against a ground truth
+
 def QA_mask_eval(gt_mask, pred_mask):       
         # ravel and index regions that have annotations (gt == QA_gt_mask[:,:,2])
         annot_regions = gt_mask[:,:,2].ravel()
@@ -225,6 +274,7 @@ def QA_mask_eval(gt_mask, pred_mask):
                         }
 
         return outdict
+
 
 def QA_eval(basedir):
     #TODO: What if multiple predictions exist for an image? i.e. multiple models input and ensemble generated, too?
@@ -287,7 +337,12 @@ def QA_eval(basedir):
     out_df = pd.DataFrame(outlist)
     # output as tsv
     out_df.to_csv(os.path.join(gt_dir, 'eval.tsv'), sep = '\t', index = False)
-        
+
+
+
+################ Bringing everything together - inference, reporting on colorspace and evaluation
+# TODO: integrate colorspace mean values
+
 def QA_infer(basedir, sep):
     # extract args
     # resize = int(args['resize'])
@@ -346,6 +401,8 @@ def QA_infer(basedir, sep):
     if os.path.exists(os.path.join(basedir, 'gt')):
         print('Evaluating prediction against ground truth')
         QA_eval(basedir)
+
+
 
 # run inference
 if __name__ == '__main__': 
